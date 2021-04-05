@@ -1,0 +1,6 @@
+framework module Pods_VideoImageMerge_VideoImageMergeUITests {
+  umbrella header "Pods-VideoImageMerge-VideoImageMergeUITests-umbrella.h"
+
+  export *
+  module * { export * }
+}
