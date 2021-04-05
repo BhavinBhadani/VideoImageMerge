@@ -116,8 +116,8 @@ class VideoManager: NSObject {
         for image in images {
             let animatedImageLayer = CALayer()
                         
-            let aspectWidth  = outputSize.width/video.frame.width
-            let aspectHeight = outputSize.height/video.frame.height
+            let aspectWidth  = assetInfo.isPortrait ? outputSize.width/video.frame.height : outputSize.width/video.frame.width
+            let aspectHeight = assetInfo.isPortrait ? outputSize.height/video.frame.width : outputSize.height/video.frame.height
             let aspectRatio = min(aspectWidth, aspectHeight)
 
             let scaledWidth  = image.frame.width * aspectRatio
@@ -132,7 +132,7 @@ class VideoManager: NSObject {
             iFrame.size.width = scaledWidth
             iFrame.size.height = scaledWidth
             animatedImageLayer.frame = iFrame
-            animatedImageLayer.position = CGPoint(x: cx, y: cy)
+            animatedImageLayer.position = CGPoint(x: assetInfo.isPortrait ? cy : cx, y: assetInfo.isPortrait ? cx : cy)
             
             if let animatedURL = URL(string: image.url), let animation = animatedImage(with: animatedURL) {
                 animatedImageLayer.add(animation, forKey: "contents")

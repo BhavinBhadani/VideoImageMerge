@@ -50,6 +50,11 @@ class VideoEditingViewController: UIViewController {
         }
     }
     
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        videoPlayer?.pause()
+    }
+    
     @IBAction func addWasPressed(_ sender: Any) {
         if index == gifs.count { index = 0 }
         let sticker = ATStickerView(contentFrame: CGRect(x: 0, y: 0, width: 100, height: 100),
@@ -110,6 +115,13 @@ class VideoEditingViewController: UIViewController {
             newSize = CGSize(width: trackSize.width * videoViewSize.height / trackSize.height, height: videoViewSize.height)
         } else {
             newSize = CGSize(width: videoViewSize.width, height: trackSize.height * videoViewSize.width / trackSize.width)
+        }
+        
+        let assetInfo = VideoManager.shared.orientationFromTransform(transform: track.preferredTransform)
+        if assetInfo.isPortrait {
+            let tempSize = newSize
+            newSize.width = tempSize.height
+            newSize.height = tempSize.width
         }
         
         return newSize
