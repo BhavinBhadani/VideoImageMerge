@@ -35,7 +35,7 @@ class VideoManager: NSObject {
     // Merge videos & images
     //
     func makeVideoFrom(video: VideoData, images: [VideoOverlayImage], completion:@escaping Completion) -> Void {
-        var outputSize: CGSize = .zero
+        var outputSize: CGSize = video.frame.size
         var insertTime: CMTime = .zero
         var arrayLayerInstructions: [AVMutableVideoCompositionLayerInstruction] = []
         var arrayLayerImages: [CALayer] = []
@@ -46,21 +46,21 @@ class VideoManager: NSObject {
         // Get video track
         guard let videoTrack = video.asset.tracks(withMediaType: AVMediaType.video).first else { return }
         
-        let assetInfo = orientationFromTransform(transform: videoTrack.preferredTransform)
+//        let assetInfo = orientationFromTransform(transform: videoTrack.preferredTransform)
         
-        var videoSize = videoTrack.naturalSize
-        if assetInfo.isPortrait == true {
-            videoSize.width = videoTrack.naturalSize.height
-            videoSize.height = videoTrack.naturalSize.width
-        }
-
-        if videoSize.height > outputSize.height {
-            outputSize = videoSize
-        }
-
-        if outputSize.width == 0 || outputSize.height == 0 {
-            outputSize = defaultSize
-        }
+//        var videoSize = videoTrack.naturalSize
+//        if assetInfo.isPortrait == true {
+//            videoSize.width = videoTrack.naturalSize.height
+//            videoSize.height = videoTrack.naturalSize.width
+//        }
+//
+//        if videoSize.height > outputSize.height {
+//            outputSize = videoSize
+//        }
+//
+//        if outputSize.width == 0 || outputSize.height == 0 {
+//            outputSize = defaultSize
+//        }
         
         // Get audio track
         var audioTrack: AVAssetTrack?
@@ -116,23 +116,23 @@ class VideoManager: NSObject {
         for image in images {
             let animatedImageLayer = CALayer()
                         
-            let aspectWidth  = assetInfo.isPortrait ? outputSize.width/video.frame.height : outputSize.width/video.frame.width
-            let aspectHeight = assetInfo.isPortrait ? outputSize.height/video.frame.width : outputSize.height/video.frame.height
-            let aspectRatio = min(aspectWidth, aspectHeight)
-
-            let scaledWidth  = image.frame.width * aspectRatio
-            let scaledHeight = image.frame.height * aspectRatio
+//            let aspectWidth  = assetInfo.isPortrait ? outputSize.width/video.frame.height : outputSize.width/video.frame.width
+//            let aspectHeight = assetInfo.isPortrait ? outputSize.height/video.frame.width : outputSize.height/video.frame.height
+//            let aspectRatio = min(aspectWidth, aspectHeight)
+//
+//            let scaledWidth  = image.frame.width * aspectRatio
+//            let scaledHeight = image.frame.height * aspectRatio
 //            let x = (outputSize.width - image.frame.width) / 2
 //            let y = (outputSize.height - image.frame.height) / 2
             
-            let cx = (image.frame.minX * aspectRatio) + (scaledWidth / 2)
-            let cy = (image.frame.minY * aspectRatio) + (scaledHeight / 2)
+//            let cx = (image.frame.minX * aspectRatio) + (scaledWidth / 2)
+//            let cy = (image.frame.minY * aspectRatio) + (scaledHeight / 2)
 
-            var iFrame = image.frame
-            iFrame.size.width = scaledWidth
-            iFrame.size.height = scaledWidth
-            animatedImageLayer.frame = iFrame
-            animatedImageLayer.position = CGPoint(x: assetInfo.isPortrait ? cy : cx, y: assetInfo.isPortrait ? cx : cy)
+//            var iFrame = image.frame
+//            iFrame.size.width = scaledWidth
+//            iFrame.size.height = scaledWidth
+            animatedImageLayer.frame = image.frame
+//            animatedImageLayer.position = CGPoint(x: assetInfo.isPortrait ? cy : cx, y: assetInfo.isPortrait ? cx : cy)
             
             if let animatedURL = URL(string: image.url), let animation = animatedImage(with: animatedURL) {
                 animatedImageLayer.add(animation, forKey: "contents")

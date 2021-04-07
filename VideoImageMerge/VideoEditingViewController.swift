@@ -34,6 +34,8 @@ class VideoEditingViewController: UIViewController {
         didSet {
             guard let stickerView = selectedStickerView else { return }
             selectedStickerView?.isHandlingControlsEnable = true
+            //selectedStickerView?.enableResizeControl = false
+            selectedStickerView?.enableFlipControl = false
             selectedStickerView?.superview?.bringSubviewToFront(stickerView)
         }
     }
