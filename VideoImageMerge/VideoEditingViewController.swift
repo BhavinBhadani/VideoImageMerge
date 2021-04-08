@@ -34,8 +34,6 @@ class VideoEditingViewController: UIViewController {
         didSet {
             guard let stickerView = selectedStickerView else { return }
             selectedStickerView?.isHandlingControlsEnable = true
-            //selectedStickerView?.enableResizeControl = false
-            selectedStickerView?.enableFlipControl = false
             selectedStickerView?.superview?.bringSubviewToFront(stickerView)
         }
     }
@@ -119,7 +117,7 @@ class VideoEditingViewController: UIViewController {
             newSize = CGSize(width: videoViewSize.width, height: trackSize.height * videoViewSize.width / trackSize.width)
         }
         
-        let assetInfo = VideoManager.shared.orientationFromTransform(transform: track.preferredTransform)
+        let assetInfo = VideoManager.shared.orientationFromTransform(track.preferredTransform)
         if assetInfo.isPortrait {
             let tempSize = newSize
             newSize.width = tempSize.height

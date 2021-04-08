@@ -1,10 +1,4 @@
-//
-//  VideoMergeManager.swift
-//  StickerMaker
-//
-//  Created by Appernaut on 31/03/21.
-//  Copyright © 2021 Appernaut. All rights reserved.
-//
+
 
 import UIKit
 import MediaPlayer
@@ -26,7 +20,7 @@ class VideoManager: NSObject {
     
     let defaultSize = CGSize(width: 1920, height: 1080)
     typealias Completion = (URL?, Error?) -> Void
-        
+    
     func merge(video: VideoData, images: [VideoOverlayImage], completion:@escaping Completion) -> Void {
         makeVideoFrom(video: video, images: images, completion: completion)
     }
@@ -35,32 +29,16 @@ class VideoManager: NSObject {
     // Merge videos & images
     //
     func makeVideoFrom(video: VideoData, images: [VideoOverlayImage], completion:@escaping Completion) -> Void {
-        var outputSize: CGSize = video.frame.size
+        let outputSize: CGSize = video.frame.size
         var insertTime: CMTime = .zero
-        var arrayLayerInstructions: [AVMutableVideoCompositionLayerInstruction] = []
+        var instructions: [AVMutableVideoCompositionInstruction] = []
         var arrayLayerImages: [CALayer] = []
-                        
+        
         // Init composition
         let mixComposition = AVMutableComposition()
         
         // Get video track
         guard let videoTrack = video.asset.tracks(withMediaType: AVMediaType.video).first else { return }
-        
-//        let assetInfo = orientationFromTransform(transform: videoTrack.preferredTransform)
-        
-//        var videoSize = videoTrack.naturalSize
-//        if assetInfo.isPortrait == true {
-//            videoSize.width = videoTrack.naturalSize.height
-//            videoSize.height = videoTrack.naturalSize.width
-//        }
-//
-//        if videoSize.height > outputSize.height {
-//            outputSize = videoSize
-//        }
-//
-//        if outputSize.width == 0 || outputSize.height == 0 {
-//            outputSize = defaultSize
-//        }
         
         // Get audio track
         var audioTrack: AVAssetTrack?
@@ -81,32 +59,24 @@ class VideoManager: NSObject {
             
             // Add video track to video composition at specific time
             try videoCompositionTrack?.insertTimeRange(CMTimeRangeMake(start: startTime, duration: duration),
-                                                      of: videoTrack,
-                                                      at: insertTime)
+                                                       of: videoTrack,
+                                                       at: insertTime)
             
             // Add audio track to audio composition at specific time
             if let audioTrack = audioTrack {
                 try audioCompositionTrack?.insertTimeRange(CMTimeRangeMake(start: startTime, duration: duration),
-                                                          of: audioTrack,
-                                                          at: insertTime)
+                                                           of: audioTrack,
+                                                           at: insertTime)
             }
             
             // Add instruction for video track
-            let layerInstruction = videoCompositionInstructionForTrack(track: videoCompositionTrack!,
-                                                                       asset: video.asset,
-                                                                       standardSize: outputSize,
-                                                                       atTime: insertTime)
+            let layerInstructions = instruction(videoCompositionTrack!,
+                                                asset: video.asset,
+                                                time: insertTime,
+                                                duration: duration,
+                                                maxRenderSize: outputSize)
+            instructions.append(layerInstructions.videoCompositionInstruction)
             
-            // Hide video track before changing to new track
-            let endTime = CMTimeAdd(insertTime, duration)
-            let timeScale = video.asset.duration.timescale
-            let durationAnimation = CMTime.init(seconds: 1, preferredTimescale: timeScale)
-            
-            layerInstruction.setOpacityRamp(fromStartOpacity: 1.0, toEndOpacity: 0.0, timeRange: CMTimeRange.init(start: endTime, duration: durationAnimation))
-            
-            arrayLayerInstructions.append(layerInstruction)
-            
-            // Increase the insert time
             insertTime = CMTimeAdd(insertTime, duration)
         } catch {
             print("Load track error")
@@ -115,24 +85,7 @@ class VideoManager: NSObject {
         // Merge
         for image in images {
             let animatedImageLayer = CALayer()
-                        
-//            let aspectWidth  = assetInfo.isPortrait ? outputSize.width/video.frame.height : outputSize.width/video.frame.width
-//            let aspectHeight = assetInfo.isPortrait ? outputSize.height/video.frame.width : outputSize.height/video.frame.height
-//            let aspectRatio = min(aspectWidth, aspectHeight)
-//
-//            let scaledWidth  = image.frame.width * aspectRatio
-//            let scaledHeight = image.frame.height * aspectRatio
-//            let x = (outputSize.width - image.frame.width) / 2
-//            let y = (outputSize.height - image.frame.height) / 2
-            
-//            let cx = (image.frame.minX * aspectRatio) + (scaledWidth / 2)
-//            let cy = (image.frame.minY * aspectRatio) + (scaledHeight / 2)
-
-//            var iFrame = image.frame
-//            iFrame.size.width = scaledWidth
-//            iFrame.size.height = scaledWidth
             animatedImageLayer.frame = image.frame
-//            animatedImageLayer.position = CGPoint(x: assetInfo.isPortrait ? cy : cx, y: assetInfo.isPortrait ? cx : cy)
             
             if let animatedURL = URL(string: image.url), let animation = animatedImage(with: animatedURL) {
                 animatedImageLayer.add(animation, forKey: "contents")
@@ -152,15 +105,10 @@ class VideoManager: NSObject {
         
         // Add Image layers
         arrayLayerImages.forEach { parentlayer.addSublayer($0) }
-        
-        // Main video composition instruction
-        let mainInstruction = AVMutableVideoCompositionInstruction()
-        mainInstruction.timeRange = CMTimeRangeMake(start: .zero, duration: insertTime)
-        mainInstruction.layerInstructions = arrayLayerInstructions
                 
         // Main video composition
         let mainComposition = AVMutableVideoComposition()
-        mainComposition.instructions = [mainInstruction]
+        mainComposition.instructions = instructions
         mainComposition.renderSize = outputSize
         mainComposition.animationTool = AVVideoCompositionCoreAnimationTool(postProcessingAsVideoLayer: videoLayer, in: parentlayer)
         mainComposition.frameDuration = CMTimeMake(value: 1, timescale: 30)
@@ -244,87 +192,58 @@ class VideoManager: NSObject {
 
 // MARK:- Private methods
 extension VideoManager {
-    func orientationFromTransform(transform: CGAffineTransform) -> (orientation: UIImage.Orientation, isPortrait: Bool) {
-        var assetOrientation: UIImage.Orientation = .up
+    func orientationFromTransform(_ transform: CGAffineTransform) -> (orientation: UIImage.Orientation, isPortrait: Bool) {
+        var assetOrientation = UIImage.Orientation.up
         var isPortrait = false
-        if transform.a == 0 && transform.b == 1.0 && transform.c == -1.0 && transform.d == 0 {
+        
+        switch [transform.a, transform.b, transform.c, transform.d] {
+        case [0.0, 1.0, -1.0, 0.0]:
             assetOrientation = .right
             isPortrait = true
-        } else if transform.a == 0 && transform.b == -1.0 && transform.c == 1.0 && transform.d == 0 {
+            
+        case [0.0, -1.0, 1.0, 0.0]:
             assetOrientation = .left
             isPortrait = true
-        } else if transform.a == 1.0 && transform.b == 0 && transform.c == 0 && transform.d == 1.0 {
+            
+        case [1.0, 0.0, 0.0, 1.0]:
             assetOrientation = .up
-        } else if transform.a == -1.0 && transform.b == 0 && transform.c == 0 && transform.d == -1.0 {
+            
+        case [-1.0, 0.0, 0.0, -1.0]:
             assetOrientation = .down
+            
+        default:
+            break
         }
+        
         return (assetOrientation, isPortrait)
     }
     
-    fileprivate func videoCompositionInstructionForTrack(track: AVCompositionTrack, asset: AVAsset, standardSize:CGSize, atTime: CMTime) -> AVMutableVideoCompositionLayerInstruction {
-        let instruction = AVMutableVideoCompositionLayerInstruction(assetTrack: track)
-        let assetTrack = asset.tracks(withMediaType: AVMediaType.video)[0]
+    fileprivate func instruction(_ assetTrack: AVAssetTrack, asset: AVAsset, time: CMTime, duration: CMTime, maxRenderSize: CGSize) -> (videoCompositionInstruction: AVMutableVideoCompositionInstruction, isPortrait: Bool) {
+        let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: assetTrack)
         
-        let transform = assetTrack.preferredTransform
-        let assetInfo = orientationFromTransform(transform: transform)
+        // Find out orientation from preffered transform.
+        let assetInfo = orientationFromTransform(assetTrack.preferredTransform)
         
-        var aspectFillRatio:CGFloat = 1
-        if assetTrack.naturalSize.height < assetTrack.naturalSize.width {
-            aspectFillRatio = standardSize.height / assetTrack.naturalSize.height
-        }
-        else {
-            aspectFillRatio = standardSize.width / assetTrack.naturalSize.width
-        }
-        
+        // Calculate scale ratio according orientation.
+        var scaleRatio = maxRenderSize.width / assetTrack.naturalSize.width
         if assetInfo.isPortrait {
-            let scaleFactor = CGAffineTransform(scaleX: aspectFillRatio, y: aspectFillRatio)
-            
-            let posX = standardSize.width/2 - (assetTrack.naturalSize.height * aspectFillRatio)/2
-            let posY = standardSize.height/2 - (assetTrack.naturalSize.width * aspectFillRatio)/2
-            let moveFactor = CGAffineTransform(translationX: posX, y: posY)
-            
-            instruction.setTransform(assetTrack.preferredTransform.concatenating(scaleFactor).concatenating(moveFactor), at: atTime)
-            
-        } else {
-            let scaleFactor = CGAffineTransform(scaleX: aspectFillRatio, y: aspectFillRatio)
-            
-            let posX = standardSize.width/2 - (assetTrack.naturalSize.width * aspectFillRatio)/2
-            let posY = standardSize.height/2 - (assetTrack.naturalSize.height * aspectFillRatio)/2
-            let moveFactor = CGAffineTransform(translationX: posX, y: posY)
-            
-            var concat = assetTrack.preferredTransform.concatenating(scaleFactor).concatenating(moveFactor)
-            
-            if assetInfo.orientation == .down {
-                let fixUpsideDown = CGAffineTransform(rotationAngle: CGFloat(Double.pi))
-                concat = fixUpsideDown.concatenating(scaleFactor).concatenating(moveFactor)
-            }
-            
-            instruction.setTransform(concat, at: atTime)
+            scaleRatio = maxRenderSize.height / assetTrack.naturalSize.height
         }
-        return instruction
-    }
-    
-    fileprivate func setOrientation(image:UIImage?, onLayer:CALayer, outputSize:CGSize) -> Void {
-        guard let image = image else { return }
         
-        if image.imageOrientation == UIImage.Orientation.up {
-            // Do nothing
-        }
-        else if image.imageOrientation == UIImage.Orientation.left {
-            let rotate = CGAffineTransform(rotationAngle: .pi/2)
-            onLayer.setAffineTransform(rotate)
-        }
-        else if image.imageOrientation == UIImage.Orientation.down {
-            let rotate = CGAffineTransform(rotationAngle: .pi)
-            onLayer.setAffineTransform(rotate)
-        }
-        else if image.imageOrientation == UIImage.Orientation.right {
-            let rotate = CGAffineTransform(rotationAngle: -.pi/2)
-            onLayer.setAffineTransform(rotate)
-        }
+        // Set correct transform.
+        var transform = CGAffineTransform(scaleX: scaleRatio, y: scaleRatio)
+        transform = assetTrack.preferredTransform.concatenating(transform)
+        layerInstruction.setTransform(transform, at: .zero)
+        
+        // Create Composition Instruction and pass Layer Instruction to it.
+        let videoCompositionInstruction = AVMutableVideoCompositionInstruction()
+        videoCompositionInstruction.timeRange = CMTimeRangeMake(start: time, duration: duration)
+        videoCompositionInstruction.layerInstructions = [layerInstruction]
+        
+        return (videoCompositionInstruction, assetInfo.isPortrait)
     }
     
-    fileprivate func exportDidFinish(exporter:AVAssetExportSession?, videoURL:URL, completion:@escaping Completion) -> Void {
+    fileprivate func exportDidFinish(exporter: AVAssetExportSession?, videoURL: URL, completion:@escaping Completion) -> Void {
         if exporter?.status == AVAssetExportSession.Status.completed {
             print("Exported file: \(videoURL.absoluteString)")
             completion(videoURL,nil)
@@ -337,7 +256,7 @@ extension VideoManager {
 }
 
 extension FileManager {
-    func removeItemIfExisted(_ url:URL) -> Void {
+    func removeItemIfExisted(_ url: URL) -> Void {
         if FileManager.default.fileExists(atPath: url.path) {
             do {
                 try FileManager.default.removeItem(atPath: url.path)
