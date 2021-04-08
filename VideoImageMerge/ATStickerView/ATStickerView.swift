@@ -12,7 +12,6 @@ import SDWebImage
 enum ATStickerViewHandler:Int {
     case close = 0
     case rotate
-    case flip
 }
 
 enum ATStickerViewPosition:Int {
@@ -89,12 +88,10 @@ class ATStickerView: UIView {
             if isHandlingControlsEnable {
                 setEnableClose(enabledDeleteControl)
                 setEnableResize(enableResizeControl)
-                setEnableFlip(enableFlipControl)
                 enabledBorder = true
             } else {
                 setEnableClose(false)
                 setEnableResize(false)
-                setEnableFlip(false)
                 enabledBorder = false
             }
         }
@@ -115,15 +112,7 @@ class ATStickerView: UIView {
             }
         }
     }
-    
-    var enableFlipControl: Bool = true {
-        didSet {
-            if self.isHandlingControlsEnable {
-                setEnableFlip(enableFlipControl)
-            }
-        }
-    }
-    
+        
     private var enabledBorder = true {
         didSet {
             if enabledBorder {
@@ -155,14 +144,6 @@ class ATStickerView: UIView {
         return resizeImgView
     }()
     
-    private lazy var flipControl: UIImageView = {
-        let flipImgView = UIImageView(frame: CGRect(x: 0, y: 0, width: initialControlWidth, height: initialControlWidth))
-        flipImgView.image = UIImage(named: "ATStickerView.bundle/btn_flip.png")!
-        flipImgView.isUserInteractionEnabled = true
-        flipImgView.addGestureRecognizer(self.flipGesture)
-        return flipImgView
-    }()
-    
     private lazy var shapeLayer: CAShapeLayer = {
         let shapeLayer = CAShapeLayer()
         let shapeRect = contentView.frame
@@ -192,11 +173,7 @@ class ATStickerView: UIView {
     private lazy var closeGesture = {
         return UITapGestureRecognizer(target: self, action: #selector(self.handleCloseGesture(_:)))
     }()
-    
-    private lazy var flipGesture = {
-        return UITapGestureRecognizer(target: self, action: #selector(self.handleFlipGesture(_:)))
-    }()
-    
+        
     private lazy var tapGesture = {
         return UITapGestureRecognizer(target: self, action: #selector(handleTapGesture(_:)))
     }()
@@ -257,13 +234,10 @@ class ATStickerView: UIView {
         self.addSubview(self.deleteControl)
         self.setPosition(.bottomRight, forHandler: .rotate)
         self.addSubview(self.resizeControl)
-        self.setPosition(.bottomLeft, forHandler: .flip)
-        self.addSubview(self.flipControl)
         
         isHandlingControlsEnable = true
         enabledDeleteControl = true
         enableResizeControl = true
-        enableFlipControl = true
         
         attachGestures()
     }
@@ -322,10 +296,6 @@ class ATStickerView: UIView {
             self.initialBounds = self.bounds
             self.initialDistance = CGPointGetDistance(point1: center, point2: touchLocation)
         case .changed:
-            let angle = atan2f(Float(touchLocation.y - center.y), Float(touchLocation.x - center.x))
-            let angleDiff = Float(self.deltaAngle) - angle
-            self.transform = CGAffineTransform(rotationAngle: CGFloat(-angleDiff))
-            
             var scale = CGPointGetDistance(point1: center, point2: touchLocation) / self.initialDistance
             let minimumScale = CGFloat(self.minimumSize) / min(self.initialBounds.size.width, self.initialBounds.size.height)
             scale = max(scale, minimumScale)
@@ -359,8 +329,6 @@ extension ATStickerView {
             handlerView = deleteControl
         case .rotate:
             handlerView = resizeControl
-        case .flip:
-            handlerView = flipControl
         }
         
         switch position {
@@ -390,11 +358,6 @@ extension ATStickerView {
     private func setEnableResize(_ isEnable:Bool) {
         resizeControl.isHidden = !isEnable
         resizeControl.isUserInteractionEnabled = isEnable
-    }
-    
-    private func setEnableFlip(_ isEnable:Bool) {
-        flipControl.isHidden = !isEnable
-        flipControl.isUserInteractionEnabled = isEnable
     }
 }
 

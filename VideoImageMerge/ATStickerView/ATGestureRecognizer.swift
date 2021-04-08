@@ -11,14 +11,9 @@ import UIKit.UIGestureRecognizerSubclass
 
 class ATGestureRecognizer: UIGestureRecognizer {
     var scale: CGFloat = 0.0
-    var rotation: CGFloat = 0.0
     var anchorView: UIView? = nil
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
-//        if event.touches(for: self)?.count ?? 0 > 1 {
-//            state = .failed
-//        }
-        
         if touches.count != 1 {
             state = .failed
             return
@@ -35,14 +30,10 @@ class ATGestureRecognizer: UIGestureRecognizer {
         let currentPoint = touch.location(in: anchor.superview)
         let previousPoint = touch.previousLocation(in: anchor.superview)
         
-        let currentRotation = atan2f((Float(currentPoint.y - anchorViewCenter.y)), (Float(currentPoint.x - anchorViewCenter.x)))
-        let previousRotation = atan2f((Float(previousPoint.y - anchorViewCenter.y)), (Float(previousPoint.x - anchorViewCenter.x)))
-
         let currentRadius = distanceBetween(firstPoint: currentPoint, secondPoint: anchorViewCenter)
         let previousRadius = distanceBetween(firstPoint: previousPoint, secondPoint: anchorViewCenter)
 
         let newScale = currentRadius / previousRadius
-        rotation = CGFloat(currentRotation - previousRotation)
         scale = CGFloat(newScale)
     }
     
@@ -57,7 +48,6 @@ class ATGestureRecognizer: UIGestureRecognizer {
     }
     
     func resetProperties() {
-        rotation = 0
         scale = 1
     }
 }
